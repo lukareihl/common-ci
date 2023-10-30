@@ -8,7 +8,7 @@ param (
 Push-Location $RepoName
 
 # Path to packed packages
-$packageFolderPath = "../package";
+$packageFolderPath = "../../package";
 
 try {
     foreach ($package in $Packages) {
