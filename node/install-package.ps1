@@ -45,6 +45,8 @@ try {
             # Convert the updated object back to JSON and write it to the file
             $jsonContent | ConvertTo-Json | Set-Content $filePath
 
+            Write-Host $jsonContent
+
             # Reinstall packages to be sure that we use our packet packages
             npm install
 
