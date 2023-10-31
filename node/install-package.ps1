@@ -8,47 +8,48 @@ param (
 Push-Location $RepoName
 
 # Path to packed packages
-$packageFolderPath = "../../package";
+$packageFolderPath = "../package";
 
 try {
-    foreach ($package in $Packages) {
-        $path = Join-Path . $package
-        Push-Location $path
-        Write-Output "Switching dependencies for $package"
+    # Get all .tgz files in the package folder that match the dependency name
+    $tgzFiles = Get-ChildItem -Path $packageFolderPath -Filter "$dependencyFileName-*.tgz"
 
-        $filePath = "package.json"
+    if ($tgzFiles.Count -gt 0) {
+        # Extract version from the first matching .tgz file
+        $tgzFileName = $tgzFiles[0].Name
+        $version = [System.IO.Path]::GetFileNameWithoutExtension($tgzFileName) -replace "$dependencyFileName-", ""
 
-        # Read the content of the package.json file
-        $jsonContent = Get-Content $filePath | ConvertFrom-Json
+        # We are going through all packages to replace their package json
+        # We are adding packed package as dependency for it
+        foreach ($package in $Packages) {
+            $path = Join-Path . $package
+            Push-Location $path
+            Write-Output "Switching dependencies for $package"
 
-        # Loop through dependencies and check if they start with "file:../"
-        foreach ($dependency in $jsonContent.dependencies.PSObject.Properties) {
-            $dependencyName = $dependency.Name
-            $dependencyValue = $dependency.Value
+            $filePath = "package.json"
 
-            if ($dependencyValue -match "^file:\.\./(.+)") {
-                $dependencyFileName = $Matches[1]
+            # Read the content of the package.json file
+            $jsonContent = Get-Content $filePath | ConvertFrom-Json
 
-                # Get all .tgz files in the package folder that match the dependency name
-                $tgzFiles = Get-ChildItem -Path $packageFolderPath -Filter "$dependencyFileName-*.tgz"
-
-                if ($tgzFiles.Count -gt 0) {
-                    # Extract version from the first matching .tgz file
-                    $tgzFileName = $tgzFiles[0].Name
-                    $version = [System.IO.Path]::GetFileNameWithoutExtension($tgzFileName) -replace "$dependencyFileName-", ""
-                    $newDependencyValue = "file:../../package/$dependencyFileName-$version.tgz"
-                    $jsonContent.dependencies.$dependencyName = $newDependencyValue
-                }
+            # Check if the dependency exists in the package.json
+            if ($jsonContent.dependencies.$package) {
+                # Update the dependency value
+                $jsonContent.dependencies.$package = "file:../../package/$package-$version.tgz"
+            } else {
+                # If the dependency doesn't exist, add it with the new value
+                $jsonContent.dependencies.$package = "file:../../package/$package-$version.tgz"
             }
+
+            $jsonContent.dependencies.$dependencyName = $newDependencyValue
+
+            # Convert the updated object back to JSON and write it to the file
+            $jsonContent | ConvertTo-Json | Set-Content $filePath
+
+            # Reinstall packages to be sure that we use our packet packages
+            npm install
+
+            Pop-Location
         }
-
-        # Convert the updated object back to JSON and write it to the file
-        $jsonContent | ConvertTo-Json | Set-Content $filePath
-
-        # Reinstall packages to be sure that we use our packet packages
-        npm install
-
-        Pop-Location
     }
 } finally {
     Pop-Location
