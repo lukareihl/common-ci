@@ -8,7 +8,7 @@ param (
 Push-Location $RepoName
 
 # Path to packed packages
-$packageFolderPath = "../package";
+$packageFolderPath = "../../package";
 
 try {
     # Get all .tgz files in the package folder that match the dependency name
